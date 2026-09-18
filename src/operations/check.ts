@@ -305,7 +305,8 @@ export async function runCheck(config: Config): Promise<void> {
 
     if (
         contributors.contributors.length === 0 &&
-        contributors.unresolved.length === 0
+        contributors.unresolved.length === 0 &&
+        contributors.exempt.length === 0
     ) {
         await report(
             github,
