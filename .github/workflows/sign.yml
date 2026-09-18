@@ -27,7 +27,7 @@ jobs:
             cla-registry
           permission-contents: read
           permission-issues: write
-          permission-pull-requests: read
+          permission-pull-requests: write
           permission-checks: write
 
       - name: Create Cattr CLA Registry token
