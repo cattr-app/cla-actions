@@ -1,0 +1,49 @@
+name: CLA Sign
+
+on:
+  workflow_call:
+    secrets:
+      CATTR_CLA_BOT_PRIVATE_KEY:
+        required: true
+      CATTR_CLA_REGISTRY_PRIVATE_KEY:
+        required: true
+
+permissions: {}
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Cattr CLA Bot token
+        id: bot
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.CATTR_CLA_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.CATTR_CLA_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: |
+            ${{ github.event.repository.name }}
+            cla-registry
+          permission-contents: read
+          permission-issues: write
+          permission-pull-requests: read
+          permission-checks: write
+
+      - name: Create Cattr CLA Registry token
+        id: registry
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.CATTR_CLA_REGISTRY_CLIENT_ID }}
+          private-key: ${{ secrets.CATTR_CLA_REGISTRY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: cla-registry
+          permission-contents: write
+
+      - name: Record CLA acceptance
+        uses: cattr-app/cla-actions@v1
+        with:
+          operation: sign
+          bot-token: ${{ steps.bot.outputs.token }}
+          bot-app-slug: ${{ steps.bot.outputs.app-slug }}
+          registry-token: ${{ steps.registry.outputs.token }}

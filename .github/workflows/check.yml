@@ -1,0 +1,36 @@
+name: CLA Check
+
+on:
+  workflow_call:
+    secrets:
+      CATTR_CLA_BOT_PRIVATE_KEY:
+        required: true
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Cattr CLA Bot token
+        id: bot
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.CATTR_CLA_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.CATTR_CLA_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: |
+            ${{ github.event.repository.name }}
+            cla-registry
+          permission-contents: read
+          permission-issues: write
+          permission-pull-requests: read
+          permission-checks: write
+
+      - name: Check CLA
+        uses: cattr-app/cla-actions@v1
+        with:
+          operation: check
+          bot-token: ${{ steps.bot.outputs.token }}
+          bot-app-slug: ${{ steps.bot.outputs.app-slug }}

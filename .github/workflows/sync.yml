@@ -1,0 +1,32 @@
+name: CLA Sync
+
+on:
+  workflow_call:
+    secrets:
+      CATTR_CLA_REGISTRY_PRIVATE_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Cattr CLA Registry token
+        id: registry
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.CATTR_CLA_REGISTRY_CLIENT_ID }}
+          private-key: ${{ secrets.CATTR_CLA_REGISTRY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: cla-registry
+          permission-contents: write
+
+      - name: Synchronize CLA
+        uses: cattr-app/cla-actions@v1
+        with:
+          operation: sync
+          source-token: ${{ github.token }}
+          registry-token: ${{ steps.registry.outputs.token }}

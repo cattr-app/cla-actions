@@ -1,0 +1,19 @@
+{
+  "name": "@cattr/cla-actions",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GitHub Actions automation for Cattr Contributor License Agreements",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@12.5.0+sha512.9cdbaa34ffacae1768635ac0d23e94db6201c7d59bf3da236b23d67c8f6b794d1dab323bcd5bcc51b55c8cafbf6f19a24e4aa61d6ab7772aa3b5cc85e325dc4d",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=cjs --target=node24 --outfile=dist/index.js --legal-comments=none",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "check": "pnpm typecheck && pnpm test"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2"
+  }
+}

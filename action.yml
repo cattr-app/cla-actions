@@ -1,0 +1,37 @@
+name: Cattr CLA
+description: Cattr Contributor License Agreement automation
+
+inputs:
+  operation:
+    description: Operation to perform (check, sign, claim, or sync)
+    required: true
+
+  bot-token:
+    description: Cattr CLA Bot installation token
+    required: false
+
+  bot-app-slug:
+    description: Cattr CLA Bot GitHub App slug
+    required: false
+
+  registry-token:
+    description: Cattr CLA Registry installation token
+    required: false
+
+  source-token:
+    description: Token used to read the source repository
+    required: false
+
+  registry-repository:
+    description: CLA registry repository
+    required: false
+    default: cattr-app/cla-registry
+
+  cla-path:
+    description: Path to the CLA in the source repository
+    required: false
+    default: CLA.md
+
+runs:
+  using: node20
+  main: dist/index.js

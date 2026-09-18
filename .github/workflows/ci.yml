@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm and Node.js
+        uses: pnpm/setup@v2
+        with:
+          runtime: node@24
+          cache: true
+
+      - name: Type-check
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build action
+        run: pnpm build
+
+      - name: Validate bundle syntax
+        run: node --check dist/index.js
+
+      - name: Ensure dist is committed
+        run: git diff --exit-code -- dist/index.js
+
+      - name: Run actionlint
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
