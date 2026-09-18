@@ -116,7 +116,27 @@ var GitHubClient = class {
     });
     const text = await response.text();
     if (!response.ok) {
-      throw new GitHubHttpError(response.status, text);
+      const acceptedPermissions = response.headers.get("x-accepted-github-permissions");
+      let apiMessage = text.trim();
+      if (text !== "") {
+        try {
+          const payload = JSON.parse(text);
+          if (payload && typeof payload === "object" && typeof payload.message === "string") {
+            apiMessage = payload.message;
+          }
+        } catch {
+        }
+      }
+      const details = [
+        `GitHub API ${method} ${path} failed with HTTP ${response.status}`,
+        apiMessage ? `message=${apiMessage}` : "",
+        acceptedPermissions ? `accepted-permissions=${acceptedPermissions}` : ""
+      ].filter(Boolean);
+      throw new GitHubHttpError(
+        response.status,
+        text,
+        details.join("; ")
+      );
     }
     return text === "" ? null : JSON.parse(text);
   }
@@ -624,9 +644,6 @@ async function report(github, repositoryName, prNumber, headSha, appSlug, claUrl
     COMMENT_MARKER,
     body
   );
-  if ((result.exitCode ?? 0) !== 0) {
-    process.exitCode = result.exitCode ?? 1;
-  }
 }
 function renderContributorStatus(accepted, missing, contributors, version, digest, claUrl) {
   const lines = [
@@ -700,7 +717,6 @@ async function runCheck(config) {
       {
         conclusion: "failure",
         title: "CLA file is missing",
-        exitCode: 1,
         body: [
           "### Contributor License Agreement",
           "",
@@ -726,7 +742,6 @@ async function runCheck(config) {
       {
         conclusion: "failure",
         title: "Invalid CLA metadata",
-        exitCode: 1,
         body: [
           "### Contributor License Agreement",
           "",
@@ -755,7 +770,6 @@ async function runCheck(config) {
       {
         conclusion: "failure",
         title: "CLA registry is out of sync",
-        exitCode: 1,
         body: [
           "### Contributor License Agreement",
           "",
@@ -778,7 +792,6 @@ async function runCheck(config) {
       {
         conclusion: "failure",
         title: "CLA registry mismatch",
-        exitCode: 1,
         body: [
           "### Contributor License Agreement",
           "",
@@ -816,7 +829,6 @@ async function runCheck(config) {
       {
         conclusion: "failure",
         title: "Conflicting CLA authorship claims",
-        exitCode: 1,
         body: [
           "### Contributor License Agreement",
           "",
@@ -828,7 +840,33 @@ async function runCheck(config) {
     );
     return;
   }
-  if (contributors.contributors.length === 0 && contributors.unresolved.length === 0) {
+  if (contributors.contributors.length === 0 && contributors.unresolved.length === 0 && contributors.exempt.length > 0) {
+    await report(
+      github,
+      sourceRepository,
+      prNumber,
+      pr.headSha,
+      config.botAppSlug,
+      claUrl,
+      {
+        conclusion: "success",
+        title: "CLA not required",
+        body: [
+          "### Contributor License Agreement",
+          "",
+          "\u2705 CLA acceptance is not required for this pull request.",
+          "",
+          "**Exempt automation:**",
+          "",
+          ...contributors.exempt.map(
+            (contributor) => `- \u{1F916} \`${contributor.githubLogin}\``
+          )
+        ].join("\n")
+      }
+    );
+    return;
+  }
+  if (contributors.contributors.length === 0 && contributors.unresolved.length === 0 && contributors.exempt.length === 0) {
     await report(
       github,
       sourceRepository,
@@ -839,11 +877,10 @@ async function runCheck(config) {
       {
         conclusion: "failure",
         title: "No contributors found",
-        exitCode: 1,
         body: [
           "### Contributor License Agreement",
           "",
-          "\u274C No human contributors could be determined for this pull request.",
+          "\u274C No contributors could be determined for this pull request.",
           "",
           "Maintainer action is required."
         ].join("\n")
@@ -892,7 +929,6 @@ async function runCheck(config) {
       {
         conclusion: "failure",
         title: "Invalid CLA acceptance record",
-        exitCode: 1,
         body: [
           "### Contributor License Agreement",
           "",

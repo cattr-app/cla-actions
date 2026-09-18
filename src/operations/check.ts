@@ -70,10 +70,6 @@ async function report(
         COMMENT_MARKER,
         body,
     );
-
-    if ((result.exitCode ?? 0) !== 0) {
-        process.exitCode = result.exitCode ?? 1;
-    }
 }
 
 function renderContributorStatus(
@@ -166,7 +162,6 @@ export async function runCheck(config: Config): Promise<void> {
             {
                 conclusion: "failure",
                 title: "CLA file is missing",
-                exitCode: 1,
                 body: [
                     "### Contributor License Agreement",
                     "",
@@ -194,7 +189,6 @@ export async function runCheck(config: Config): Promise<void> {
             {
                 conclusion: "failure",
                 title: "Invalid CLA metadata",
-                exitCode: 1,
                 body: [
                     "### Contributor License Agreement",
                     "",
@@ -225,7 +219,6 @@ export async function runCheck(config: Config): Promise<void> {
             {
                 conclusion: "failure",
                 title: "CLA registry is out of sync",
-                exitCode: 1,
                 body: [
                     "### Contributor License Agreement",
                     "",
@@ -249,7 +242,6 @@ export async function runCheck(config: Config): Promise<void> {
             {
                 conclusion: "failure",
                 title: "CLA registry mismatch",
-                exitCode: 1,
                 body: [
                     "### Contributor License Agreement",
                     "",
@@ -290,13 +282,43 @@ export async function runCheck(config: Config): Promise<void> {
             {
                 conclusion: "failure",
                 title: "Conflicting CLA authorship claims",
-                exitCode: 1,
                 body: [
                     "### Contributor License Agreement",
                     "",
                     "❌ Conflicting or invalid authorship claims were detected.",
                     "",
                     "Maintainer action is required.",
+                ].join("\n"),
+            },
+        );
+        return;
+    }
+
+    if (
+        contributors.contributors.length === 0 &&
+        contributors.unresolved.length === 0 &&
+        contributors.exempt.length > 0
+    ) {
+        await report(
+            github,
+            sourceRepository,
+            prNumber,
+            pr.headSha,
+            config.botAppSlug,
+            claUrl,
+            {
+                conclusion: "success",
+                title: "CLA not required",
+                body: [
+                    "### Contributor License Agreement",
+                    "",
+                    "✅ CLA acceptance is not required for this pull request.",
+                    "",
+                    "**Exempt automation:**",
+                    "",
+                    ...contributors.exempt.map(
+                        contributor => `- 🤖 \`${contributor.githubLogin}\``,
+                    ),
                 ].join("\n"),
             },
         );
@@ -318,11 +340,10 @@ export async function runCheck(config: Config): Promise<void> {
             {
                 conclusion: "failure",
                 title: "No contributors found",
-                exitCode: 1,
                 body: [
                     "### Contributor License Agreement",
                     "",
-                    "❌ No human contributors could be determined for this pull request.",
+                    "❌ No contributors could be determined for this pull request.",
                     "",
                     "Maintainer action is required.",
                 ].join("\n"),
@@ -380,7 +401,6 @@ export async function runCheck(config: Config): Promise<void> {
             {
                 conclusion: "failure",
                 title: "Invalid CLA acceptance record",
-                exitCode: 1,
                 body: [
                     "### Contributor License Agreement",
                     "",

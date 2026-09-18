@@ -51,7 +51,40 @@ export class GitHubClient {
         const text = await response.text();
 
         if (!response.ok) {
-            throw new GitHubHttpError(response.status, text);
+            const acceptedPermissions =
+                response.headers.get("x-accepted-github-permissions");
+
+            let apiMessage = text.trim();
+
+            if (text !== "") {
+                try {
+                    const payload = JSON.parse(text);
+
+                    if (
+                        payload &&
+                        typeof payload === "object" &&
+                        typeof payload.message === "string"
+                    ) {
+                        apiMessage = payload.message;
+                    }
+                } catch {
+                    // Keep the raw response body when GitHub does not return JSON.
+                }
+            }
+
+            const details = [
+                `GitHub API ${method} ${path} failed with HTTP ${response.status}`,
+                apiMessage ? `message=${apiMessage}` : "",
+                acceptedPermissions
+                    ? `accepted-permissions=${acceptedPermissions}`
+                    : "",
+            ].filter(Boolean);
+
+            throw new GitHubHttpError(
+                response.status,
+                text,
+                details.join("; "),
+            );
         }
 
         return text === "" ? null : JSON.parse(text);

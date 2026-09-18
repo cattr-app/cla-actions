@@ -117,5 +117,4 @@ export interface CheckResult {
     conclusion: "success" | "failure" | "action_required";
     title: string;
     body: string;
-    exitCode?: number;
 }
