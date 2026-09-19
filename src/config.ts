@@ -13,7 +13,7 @@ export interface Config {
 
 export function loadConfig(): Config {
     const exempt = (
-        process.env.CLA_EXEMPT_LOGINS ??
+        process.env.CLA_EXEMPT_LOGINS?.trim() ||
         "dependabot[bot]"
     )
         .split(/\r?\n/)

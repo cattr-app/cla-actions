@@ -30,6 +30,8 @@ jobs:
 
       - name: Check CLA
         uses: cattr-app/cla-actions@v1
+        env:
+          CLA_EXEMPT_LOGINS: ${{ vars.CLA_EXEMPT_LOGINS }}
         with:
           operation: check
           bot-token: ${{ steps.bot.outputs.token }}

@@ -42,6 +42,8 @@ jobs:
 
       - name: Claim authorship
         uses: cattr-app/cla-actions@v1
+        env:
+          CLA_EXEMPT_LOGINS: ${{ vars.CLA_EXEMPT_LOGINS }}
         with:
           operation: claim
           bot-token: ${{ steps.bot.outputs.token }}
