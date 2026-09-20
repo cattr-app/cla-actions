@@ -133,7 +133,9 @@ with exactly one marker:
 
 Versions are monotonically increasing integers. Any textual modification requires a new version.
 
-For a pull request, the effective CLA is always loaded from the trusted PR base commit, never from contributor-controlled head content.
+For a pull request, the effective CLA is loaded from trusted repository history, never from contributor-controlled head content.
+
+Normally the CLA is pinned to the PR base commit. For legacy pull requests whose base commit predates the introduction of `CLA.md`, the action resolves the current target branch to a concrete commit SHA and loads the CLA from that pinned commit instead. The fallback is used only when the CLA file is absent from the original base revision; malformed or mismatched CLA data does not fall through to a newer version.
 
 A PR that changes `CLA.md` remains governed by the version in its base revision. The new version becomes effective after merge to the default branch and synchronization to the registry.
 
@@ -256,7 +258,7 @@ For a multi-author PR, every human author and co-author must independently satis
 
 The caller uses `pull_request_target` so fork PRs can participate in the CLA flow while organization secrets remain available to the trusted workflow.
 
-The action never checks out or executes the pull request head. The effective CLA is fetched from the trusted base SHA through the GitHub API.
+The action never checks out or executes the pull request head. The effective CLA is fetched through the GitHub API from either the trusted PR base SHA or, only when that revision has no CLA file, a concrete SHA resolved from the trusted target branch.
 
 Do not change this invariant. In particular, CLA workflows must never execute contributor-controlled files, scripts, or actions.
 

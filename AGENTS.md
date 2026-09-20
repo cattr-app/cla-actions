@@ -1,6 +1,3 @@
-\
-# AGENTS.md
-
 ## Repository purpose
 
 This repository contains the centralized Cattr Contributor License Agreement automation used by CLA-enabled Cattr repositories. It is security-sensitive infrastructure: it decides whether a contribution has the required authorship attribution and CLA acceptance, and it writes audit records to the private `cattr-app/cla-registry` repository.
@@ -51,7 +48,7 @@ These rules are mandatory unless the project owner explicitly changes the securi
 
 1. Never checkout, execute, import, or evaluate code from a pull request head in a privileged CLA workflow.
 2. `pull_request_target` is used only because the workflow requires trusted organization secrets. Treat all PR-controlled data as untrusted input.
-3. The effective CLA for a PR must be read from the trusted PR **base SHA**, never from the PR head.
+3. The effective CLA for a PR must be read from trusted repository history, never from the PR head. Prefer the PR **base SHA**. A fallback to the current target branch is allowed only when the CLA file is absent from that base revision, and the target branch must first be resolved to a concrete commit SHA.
 4. The contributor-controlled head SHA may be used as the target of a check run, but not as a source of executable code or trusted configuration.
 5. Keep GitHub App privileges separated:
    - `Cattr CLA Bot` reads source/registry data, posts comments, and writes checks.
@@ -108,7 +105,7 @@ Versions are monotonically increasing positive integers. Any textual CLA change 
 
 The exact bytes are additionally identified by SHA-256. Do not embed the digest into `CLA.md` itself.
 
-When a PR changes `CLA.md`, that PR is still evaluated against the CLA present at its trusted base SHA. The newly merged CLA becomes effective after registry synchronization.
+When a PR changes `CLA.md`, that PR is still evaluated against the CLA present at its trusted base SHA. Legacy PRs whose base predates `CLA.md` may instead use the CLA from a concrete SHA resolved from the current target branch. This fallback must not hide malformed metadata, digest mismatches, or other validation failures. The newly merged CLA becomes effective after registry synchronization.
 
 ## Registry contract
 

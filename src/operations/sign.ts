@@ -1,5 +1,5 @@
 import { Config } from "../config";
-import { parseClaVersion, sha256 } from "../cla";
+import { parseClaVersion, resolveEffectiveCla, sha256 } from "../cla";
 import { GitHubClient, GitHubHttpError } from "../github";
 import { applyClaims, collectPrContributors } from "../contributors";
 import {
@@ -121,10 +121,17 @@ export async function runSign(config: Config): Promise<void> {
         return;
     }
 
-    const claUrl = `https://github.com/${sourceRepository}/blob/${pr.baseSha}/${config.claPath}`;
-    const cla = await bot.getFile(sourceRepository, config.claPath, pr.baseSha);
+    const effectiveCla = await resolveEffectiveCla(
+        bot,
+        sourceRepository,
+        config.claPath,
+        pr,
+    );
+    const claUrl =
+        effectiveCla?.sourceUrl ??
+        `https://github.com/${sourceRepository}/blob/${pr.baseSha}/${config.claPath}`;
 
-    if (cla === null) {
+    if (effectiveCla === null) {
         await reply(
             bot,
             sourceRepository,
@@ -135,6 +142,7 @@ export async function runSign(config: Config): Promise<void> {
         return;
     }
 
+    const cla = effectiveCla.content;
     let version: number;
 
     try {
@@ -231,7 +239,7 @@ export async function runSign(config: Config): Promise<void> {
             comment_id: commentId,
             comment_url: commentUrl,
             command: body,
-            source_commit: pr.baseSha,
+            source_commit: effectiveCla.sourceSha,
             source_path: config.claPath,
             source_url: claUrl,
             workflow_run_id: workflowRunId(),

@@ -1,5 +1,5 @@
 import { Config } from "../config";
-import { parseClaVersion, sha256 } from "../cla";
+import { parseClaVersion, resolveEffectiveCla, sha256 } from "../cla";
 import { GitHubClient } from "../github";
 import { applyClaims, collectPrContributors } from "../contributors";
 import {
@@ -148,10 +148,17 @@ export async function runCheck(config: Config): Promise<void> {
         return;
     }
 
-    const claUrl = `https://github.com/${sourceRepository}/blob/${pr.baseSha}/${config.claPath}`;
-    const cla = await github.getFile(sourceRepository, config.claPath, pr.baseSha);
+    const effectiveCla = await resolveEffectiveCla(
+        github,
+        sourceRepository,
+        config.claPath,
+        pr,
+    );
+    const claUrl =
+        effectiveCla?.sourceUrl ??
+        `https://github.com/${sourceRepository}/blob/${pr.baseSha}/${config.claPath}`;
 
-    if (cla === null) {
+    if (effectiveCla === null) {
         await report(
             github,
             sourceRepository,
@@ -165,7 +172,7 @@ export async function runCheck(config: Config): Promise<void> {
                 body: [
                     "### Contributor License Agreement",
                     "",
-                    "❌ The CLA could not be loaded from the trusted base revision of this pull request.",
+                    "❌ The CLA could not be loaded from the trusted base revision or the current target branch of this pull request.",
                     "",
                     "Maintainer action is required.",
                 ].join("\n"),
@@ -174,6 +181,7 @@ export async function runCheck(config: Config): Promise<void> {
         return;
     }
 
+    const cla = effectiveCla.content;
     let version: number;
 
     try {

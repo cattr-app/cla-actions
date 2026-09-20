@@ -39,7 +39,7 @@ function shortSha(sha, length = 12) {
 
 // src/config.ts
 function loadConfig() {
-  const exempt = (process.env.CLA_EXEMPT_LOGINS ?? "dependabot[bot]").split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+  const exempt = (process.env.CLA_EXEMPT_LOGINS?.trim() || "dependabot[bot]").split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
   return {
     operation: getInput("operation", true),
     botToken: getInput("bot-token"),
@@ -79,6 +79,23 @@ function identityKey(name, email) {
   hash.update(Buffer.from("\0", "utf8"));
   hash.update(email, "utf8");
   return hash.digest("hex");
+}
+async function resolveEffectiveCla(github, repository2, claPath, pr) {
+  let sourceSha = pr.baseSha;
+  let content = await github.getFile(repository2, claPath, sourceSha);
+  if (content === null) {
+    const currentBase = await github.getCommit(repository2, pr.baseRef);
+    sourceSha = currentBase.sha;
+    content = await github.getFile(repository2, claPath, sourceSha);
+  }
+  if (content === null) {
+    return null;
+  }
+  return {
+    content,
+    sourceSha,
+    sourceUrl: `https://github.com/${repository2}/blob/${sourceSha}/${claPath}`
+  };
 }
 
 // src/github.ts
@@ -154,6 +171,7 @@ var GitHubClient = class {
       state: String(pr.state),
       headSha: String(pr.head.sha),
       baseSha: String(pr.base.sha),
+      baseRef: String(pr.base.ref),
       repositoryId: Number(pr.base.repo.id)
     };
   }
@@ -704,9 +722,14 @@ async function runCheck(config) {
     console.log(`PR #${prNumber} is not open; skipping CLA evaluation.`);
     return;
   }
-  const claUrl = `https://github.com/${sourceRepository}/blob/${pr.baseSha}/${config.claPath}`;
-  const cla = await github.getFile(sourceRepository, config.claPath, pr.baseSha);
-  if (cla === null) {
+  const effectiveCla = await resolveEffectiveCla(
+    github,
+    sourceRepository,
+    config.claPath,
+    pr
+  );
+  const claUrl = effectiveCla?.sourceUrl ?? `https://github.com/${sourceRepository}/blob/${pr.baseSha}/${config.claPath}`;
+  if (effectiveCla === null) {
     await report(
       github,
       sourceRepository,
@@ -720,7 +743,7 @@ async function runCheck(config) {
         body: [
           "### Contributor License Agreement",
           "",
-          "\u274C The CLA could not be loaded from the trusted base revision of this pull request.",
+          "\u274C The CLA could not be loaded from the trusted base revision or the current target branch of this pull request.",
           "",
           "Maintainer action is required."
         ].join("\n")
@@ -728,6 +751,7 @@ async function runCheck(config) {
     );
     return;
   }
+  const cla = effectiveCla.content;
   let version;
   try {
     version = parseClaVersion(cla);
@@ -1077,9 +1101,14 @@ async function runSign(config) {
     );
     return;
   }
-  const claUrl = `https://github.com/${sourceRepository}/blob/${pr.baseSha}/${config.claPath}`;
-  const cla = await bot.getFile(sourceRepository, config.claPath, pr.baseSha);
-  if (cla === null) {
+  const effectiveCla = await resolveEffectiveCla(
+    bot,
+    sourceRepository,
+    config.claPath,
+    pr
+  );
+  const claUrl = effectiveCla?.sourceUrl ?? `https://github.com/${sourceRepository}/blob/${pr.baseSha}/${config.claPath}`;
+  if (effectiveCla === null) {
     await reply(
       bot,
       sourceRepository,
@@ -1089,6 +1118,7 @@ async function runSign(config) {
     process.exitCode = 1;
     return;
   }
+  const cla = effectiveCla.content;
   let version;
   try {
     version = parseClaVersion(cla);
@@ -1170,7 +1200,7 @@ async function runSign(config) {
       comment_id: commentId,
       comment_url: commentUrl,
       command: body,
-      source_commit: pr.baseSha,
+      source_commit: effectiveCla.sourceSha,
       source_path: config.claPath,
       source_url: claUrl,
       workflow_run_id: workflowRunId(),

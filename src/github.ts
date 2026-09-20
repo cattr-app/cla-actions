@@ -108,6 +108,7 @@ export class GitHubClient {
             state: String(pr.state),
             headSha: String(pr.head.sha),
             baseSha: String(pr.base.sha),
+            baseRef: String(pr.base.ref),
             repositoryId: Number(pr.base.repo.id),
         };
     }

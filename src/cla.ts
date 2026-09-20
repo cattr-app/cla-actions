@@ -29,3 +29,52 @@ export function identityKey(name: string, email: string): string {
     hash.update(email, "utf8");
     return hash.digest("hex");
 }
+
+interface ClaSourceReader {
+    getFile(
+        repository: string,
+        path: string,
+        ref?: string,
+    ): Promise<string | null>;
+    getCommit(
+        repository: string,
+        ref: string,
+    ): Promise<{ sha: string; committedAt: string }>;
+}
+
+interface ClaPullRequestBase {
+    baseSha: string;
+    baseRef: string;
+}
+
+export interface EffectiveCla {
+    content: string;
+    sourceSha: string;
+    sourceUrl: string;
+}
+
+export async function resolveEffectiveCla(
+    github: ClaSourceReader,
+    repository: string,
+    claPath: string,
+    pr: ClaPullRequestBase,
+): Promise<EffectiveCla | null> {
+    let sourceSha = pr.baseSha;
+    let content = await github.getFile(repository, claPath, sourceSha);
+
+    if (content === null) {
+        const currentBase = await github.getCommit(repository, pr.baseRef);
+        sourceSha = currentBase.sha;
+        content = await github.getFile(repository, claPath, sourceSha);
+    }
+
+    if (content === null) {
+        return null;
+    }
+
+    return {
+        content,
+        sourceSha,
+        sourceUrl: `https://github.com/${repository}/blob/${sourceSha}/${claPath}`,
+    };
+}

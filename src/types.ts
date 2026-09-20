@@ -3,6 +3,7 @@ export interface PullRequestInfo {
     state: string;
     headSha: string;
     baseSha: string;
+    baseRef: string;
     repositoryId: number;
 }
 
