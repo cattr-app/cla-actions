@@ -44,6 +44,7 @@ jobs:
         uses: cattr-app/cla-actions@v1
         env:
           CLA_EXEMPT_LOGINS: ${{ vars.CLA_EXEMPT_LOGINS }}
+          CLA_EXEMPT_COAUTHOR_EMAILS: ${{ vars.CLA_EXEMPT_COAUTHOR_EMAILS }}
         with:
           operation: sign
           bot-token: ${{ steps.bot.outputs.token }}

@@ -88,6 +88,7 @@ export async function runSign(config: Config): Promise<void> {
         sourceRepository,
         prNumber,
         config.exemptLogins,
+        config.exemptCoauthorEmails,
     );
     const contributors = await applyClaims(
         bot,

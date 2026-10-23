@@ -9,6 +9,7 @@ export interface Config {
     registryRepository: string;
     claPath: string;
     exemptLogins: Set<string>;
+    exemptCoauthorEmails: Set<string>;
 }
 
 export function loadConfig(): Config {
@@ -33,5 +34,11 @@ export function loadConfig(): Config {
         ),
         claPath: getInput("cla-path", false, "CLA.md"),
         exemptLogins: new Set(exempt),
+        exemptCoauthorEmails: new Set(
+            (process.env.CLA_EXEMPT_COAUTHOR_EMAILS ?? "")
+                .split(/\r?\n/)
+                .map(email => email.trim().toLowerCase())
+                .filter(Boolean),
+        ),
     };
 }

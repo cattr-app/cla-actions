@@ -270,6 +270,7 @@ export async function runCheck(config: Config): Promise<void> {
         sourceRepository,
         prNumber,
         config.exemptLogins,
+        config.exemptCoauthorEmails,
     );
 
     const contributors = await applyClaims(

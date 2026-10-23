@@ -52,7 +52,10 @@ function loadConfig() {
       "cattr-app/cla-registry"
     ),
     claPath: getInput("cla-path", false, "CLA.md"),
-    exemptLogins: new Set(exempt)
+    exemptLogins: new Set(exempt),
+    exemptCoauthorEmails: new Set(
+      (process.env.CLA_EXEMPT_COAUTHOR_EMAILS ?? "").split(/\r?\n/).map((email) => email.trim().toLowerCase()).filter(Boolean)
+    )
   };
 }
 
@@ -448,15 +451,16 @@ function mergeContributor(map, contributor) {
     .../* @__PURE__ */ new Set([...current.claimedIdentities, ...contributor.claimedIdentities])
   ];
 }
-function pushActor(actors, commit, node) {
+function pushActor(actors, commit, node, isCoauthor) {
   actors.push({
     commit,
     name: String(node?.name ?? ""),
     email: String(node?.email ?? ""),
-    login: node?.user?.login ? String(node.user.login) : null
+    login: node?.user?.login ? String(node.user.login) : null,
+    isCoauthor
   });
 }
-async function collectPrContributors(github, repository2, prNumber, exemptLogins) {
+async function collectPrContributors(github, repository2, prNumber, exemptLogins, exemptCoauthorEmails) {
   const [owner, name] = splitRepository(repository2);
   const actors = [];
   let cursor = null;
@@ -476,8 +480,8 @@ async function collectPrContributors(github, repository2, prNumber, exemptLogins
     }
     for (const node of pullRequest.commits.nodes) {
       const commit = node.commit;
-      for (const actor of commit.authors.nodes) {
-        pushActor(actors, commit.oid, actor);
+      for (const [index, actor] of commit.authors.nodes.entries()) {
+        pushActor(actors, commit.oid, actor, index > 0);
       }
       let authorCursor = commit.authors.pageInfo.endCursor;
       while (commit.authors.pageInfo.hasNextPage && authorCursor) {
@@ -495,7 +499,7 @@ async function collectPrContributors(github, repository2, prNumber, exemptLogins
           throw new Error(`Commit ${commit.oid} could not be queried`);
         }
         for (const actor of object.authors.nodes) {
-          pushActor(actors, commit.oid, actor);
+          pushActor(actors, commit.oid, actor, true);
         }
         if (!object.authors.pageInfo.hasNextPage) {
           break;
@@ -512,7 +516,7 @@ async function collectPrContributors(github, repository2, prNumber, exemptLogins
   const unresolvedMap = /* @__PURE__ */ new Map();
   const exemptMap = /* @__PURE__ */ new Map();
   const resolvedLogins = [...new Set(
-    actors.map((actor) => actor.login).filter((login) => login !== null)
+    actors.filter((actor) => !(actor.isCoauthor && exemptCoauthorEmails.has(actor.email.trim().toLowerCase()))).map((actor) => actor.login).filter((login) => login !== null)
   )];
   const userIds = /* @__PURE__ */ new Map();
   for (const login of resolvedLogins) {
@@ -525,6 +529,9 @@ async function collectPrContributors(github, repository2, prNumber, exemptLogins
     }
   }
   for (const actor of actors) {
+    if (actor.isCoauthor && exemptCoauthorEmails.has(actor.email.trim().toLowerCase())) {
+      continue;
+    }
     if (actor.login && exemptLogins.has(actor.login)) {
       const current = exemptMap.get(actor.login) ?? {
         githubLogin: actor.login,
@@ -834,7 +841,8 @@ async function runCheck(config) {
     github,
     sourceRepository,
     prNumber,
-    config.exemptLogins
+    config.exemptLogins,
+    config.exemptCoauthorEmails
   );
   const contributors = await applyClaims(
     github,
@@ -1071,7 +1079,8 @@ async function runSign(config) {
     bot,
     sourceRepository,
     prNumber,
-    config.exemptLogins
+    config.exemptLogins,
+    config.exemptCoauthorEmails
   );
   const contributors = await applyClaims(
     bot,
@@ -1300,7 +1309,8 @@ async function runClaim(config) {
     bot,
     sourceRepository,
     prNumber,
-    config.exemptLogins
+    config.exemptLogins,
+    config.exemptCoauthorEmails
   );
   const matchingCommits = [
     ...new Set(

@@ -80,6 +80,7 @@ export async function runClaim(config: Config): Promise<void> {
         sourceRepository,
         prNumber,
         config.exemptLogins,
+        config.exemptCoauthorEmails,
     );
 
     const matchingCommits = [

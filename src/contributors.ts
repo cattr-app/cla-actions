@@ -15,6 +15,7 @@ interface Actor {
     name: string;
     email: string;
     login: string | null;
+    isCoauthor: boolean;
 }
 
 interface PullRequestCommitsPage {
@@ -168,12 +169,13 @@ function mergeContributor(
     ];
 }
 
-function pushActor(actors: Actor[], commit: string, node: any): void {
+function pushActor(actors: Actor[], commit: string, node: any, isCoauthor: boolean): void {
     actors.push({
         commit,
         name: String(node?.name ?? ""),
         email: String(node?.email ?? ""),
         login: node?.user?.login ? String(node.user.login) : null,
+        isCoauthor,
     });
 }
 
@@ -182,6 +184,7 @@ export async function collectPrContributors(
     repository: string,
     prNumber: number,
     exemptLogins: Set<string>,
+    exemptCoauthorEmails: Set<string>,
 ): Promise<RawContributorSet> {
     const [owner, name] = splitRepository(repository);
     const actors: Actor[] = [];
@@ -207,8 +210,9 @@ export async function collectPrContributors(
         for (const node of pullRequest.commits.nodes) {
             const commit = node.commit;
 
-            for (const actor of commit.authors.nodes) {
-                pushActor(actors, commit.oid, actor);
+            // GitHub guarantees that the primary Git author is first.
+            for (const [index, actor] of commit.authors.nodes.entries()) {
+                pushActor(actors, commit.oid, actor, index > 0);
             }
 
             let authorCursor = commit.authors.pageInfo.endCursor;
@@ -231,7 +235,7 @@ export async function collectPrContributors(
                 }
 
                 for (const actor of object.authors.nodes) {
-                    pushActor(actors, commit.oid, actor);
+                    pushActor(actors, commit.oid, actor, true);
                 }
 
                 if (!object.authors.pageInfo.hasNextPage) {
@@ -257,6 +261,10 @@ export async function collectPrContributors(
 
     const resolvedLogins = [...new Set(
         actors
+            .filter(actor => !(
+                actor.isCoauthor &&
+                exemptCoauthorEmails.has(actor.email.trim().toLowerCase())
+            ))
             .map(actor => actor.login)
             .filter((login): login is string => login !== null),
     )];
@@ -277,6 +285,13 @@ export async function collectPrContributors(
     }
 
     for (const actor of actors) {
+        if (
+            actor.isCoauthor &&
+            exemptCoauthorEmails.has(actor.email.trim().toLowerCase())
+        ) {
+            continue;
+        }
+
         if (actor.login && exemptLogins.has(actor.login)) {
             const current = exemptMap.get(actor.login) ?? {
                 githubLogin: actor.login,

@@ -91,6 +91,10 @@ dependabot[bot]
 
 Additional exemptions can be supplied through a newline-separated `CLA_EXEMPT_LOGINS` environment variable. Bot-like usernames are never automatically trusted.
 
+Co-author emails can also be exempted using the newline-separated `CLA_EXEMPT_COAUTHOR_EMAILS` Actions variable (repository or organization level). Entries are matched as exact email addresses, case-insensitively, without wildcard or domain matching. The default is empty.
+
+This exemption applies **only** to `Co-authored-by` trailer identities, never to the primary Git author of a commit. It applies whether GitHub resolves that co-author to an account or not. Human authors and other co-authors still require CLA acceptance. Unlike login exemptions, this list should be reserved for intentional automation-attribution addresses; do not include personal emails.
+
 ## Unresolved authors and `/cla-claim`
 
 Sometimes GitHub cannot associate a Git author or co-author identity with a GitHub account. Such identities are not silently ignored.
@@ -197,6 +201,7 @@ Variables:
 ```text
 CATTR_CLA_BOT_CLIENT_ID
 CATTR_CLA_REGISTRY_CLIENT_ID
+CLA_EXEMPT_COAUTHOR_EMAILS  # Optional, newline-separated exact emails
 ```
 
 Secrets:
